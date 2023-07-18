@@ -10,10 +10,11 @@ export type SquarePosition =
   | "BottomLeft"
   | "Left";
 
-export interface Connection {
-  isExit: boolean;
-  isEntry: boolean;
-  connectedTo: { row: number; col: number };
+export interface Surroundings {
+  top: { x: number; y: number };
+  right: { x: number; y: number };
+  bottom: { x: number; y: number };
+  left: { x: number; y: number };
 }
 
 //    "Linear"

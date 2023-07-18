@@ -5,5 +5,9 @@ export default function preload(this: MainScene) {
   this.scene.launch("Loading", this);
   console.log("Main: Preload");
   //Tilesets
-  this.load.image("pixel", imagePixel);
+  // this.load.image("pixel", imagePixel);
+  this.load.spritesheet("pixel", imagePixel, {
+    frameWidth: 1,
+    frameHeight: 1,
+  });
 }

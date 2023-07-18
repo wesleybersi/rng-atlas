@@ -1,7 +1,4 @@
 import MainScene from "../../scenes/Main/MainScene";
-import { Connection, SquarePosition } from "../../types";
-import { generateRandomColor } from "../../utils/helper-functions";
-import { Territory } from "../../scenes/Main/MainScene";
 import Square from "../Square/Square";
 
 // const seaReliefColors = [
@@ -24,21 +21,14 @@ const seaReliefColors = [
   0x5170c6, 0x4f68bb, 0x4d60b0, 0x3b58a5, 0x294f9a, 0x274890, 0x153978,
 ];
 
-class Ice extends Phaser.GameObjects.Sprite {
+class Ice extends Phaser.GameObjects.Image {
   scene: MainScene;
   row: number;
   col: number;
   depth: number;
   color: number;
   expanded = false;
-  landSide: "top" | "bottom" | "left" | "right";
-  constructor(
-    scene: MainScene,
-    row: number,
-    col: number,
-    depth: number,
-    landSide: "top" | "bottom" | "left" | "right"
-  ) {
+  constructor(scene: MainScene, row: number, col: number, depth: number) {
     super(scene as MainScene, col, row, "pixel");
     this.scene = scene;
     this.row = row;
@@ -46,7 +36,6 @@ class Ice extends Phaser.GameObjects.Sprite {
     this.depth = depth;
     this.color = seaReliefColors[depth];
     this.setTint(this.color);
-    this.landSide = landSide;
 
     scene.add.existing(this);
 
@@ -84,26 +73,7 @@ class Ice extends Phaser.GameObjects.Sprite {
       left: { row: this.row, col: this.col - 1 },
     };
 
-    for (const [side, position] of Object.entries(positions)) {
-      switch (this.landSide) {
-        case "top":
-        case "bottom":
-          if (
-            (side === "left" || side === "right") &&
-            !Math.floor(Math.random() * 3)
-          )
-            continue;
-          break;
-
-        case "right":
-        case "left":
-          if (
-            (side === "top" || side === "bottom") &&
-            !Math.floor(Math.random() * 3)
-          )
-            continue;
-          break;
-      }
+    for (const [_, position] of Object.entries(positions)) {
       let objectInPlace: Ice | Square | null = null;
       this.scene.events.emit(
         `${position.row},${position.col}`,
@@ -115,7 +85,7 @@ class Ice extends Phaser.GameObjects.Sprite {
         }
       );
 
-      const amount = Math.floor(Math.random() * 3 + 1);
+      const amount = Math.floor(Math.random() * 5 + 1);
 
       let newDepth = this.depth + amount;
       if (!Math.floor(Math.random() * 10))
@@ -126,13 +96,7 @@ class Ice extends Phaser.GameObjects.Sprite {
         !Math.floor(Math.random() * 2) &&
         this.depth + amount < seaReliefColors.length - 1
       ) {
-        new Ice(
-          this.scene,
-          position.row,
-          position.col,
-          newDepth,
-          this.landSide
-        );
+        new Ice(this.scene, position.row, position.col, newDepth);
       }
     }
 
@@ -148,13 +112,13 @@ class Ice extends Phaser.GameObjects.Sprite {
       left: { row: this.row, col: this.col - 1 },
     };
 
-    for (const [side, position] of Object.entries(positions)) {
+    for (const [_, position] of Object.entries(positions)) {
       if (Math.floor(Math.random() * 10)) continue;
       this.scene.events.emit(
         `${position.row},${position.col}`,
         "Ping",
         (object?: Ice | Square) => {
-          if ((object && object instanceof Square) || object instanceof Ice) {
+          if (object && object instanceof Ice) {
             if (Math.abs(object.depth - this.depth) > 1) {
               // Calculate the average depth
               const averageDepth = (object.depth + this.depth) / 2;

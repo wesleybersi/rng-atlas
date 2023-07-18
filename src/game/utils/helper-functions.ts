@@ -147,9 +147,6 @@ export function isWithinGrace(
 // }
 
 export function generateReliefColor(value: number): string {
-  const min = 0;
-  const max = 1;
-
   // Calculate the color values
   const red = Math.floor(255 * (1 - value));
   const green = Math.floor(255 * value);
@@ -273,4 +270,21 @@ export function getSteepPositions(pos: SquarePosition): SquarePosition[] {
     case "Left":
       return ["TopLeft", "BottomLeft", "Top", "Bottom"];
   }
+}
+
+export const randomizeDecimals = (value: number): number => {
+  const roundedValue = Math.round(value * 100); // Multiply by 100 to preserve two decimal places
+  const randomOffset = Math.random() * 100; // Generate a random offset between 0 and 99
+  const randomizedValue = (roundedValue + randomOffset) / 100; // Divide by 100 to restore the original scale
+
+  return randomizedValue;
+};
+
+export function oneIn(chance: number): boolean {
+  if (!Math.floor(Math.random() * chance)) return true;
+  return false;
+}
+
+export function random(num: number): number {
+  return Math.floor(Math.random() * num);
 }

@@ -1,0 +1,35 @@
+.wrapper {
+  position: fixed;
+  top: 3rem;
+  right: 2rem;
+  height: auto;
+  width: fit-content;
+  max-width: 24rem;
+  min-width: 24rem;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  .name {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(64px);
+    padding: 1rem;
+    margin-left: -2rem;
+    margin-right: -2rem;
+    margin-top: -2rem;
+  }
+  .combiner {
+    display: flex;
+    flex-direction: column;
+    .hr {
+      height: 1px;
+
+      opacity: 0.25;
+    }
+  }
+  .name {
+  }
+}

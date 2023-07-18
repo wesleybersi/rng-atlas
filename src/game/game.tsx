@@ -1,17 +1,22 @@
 import { useRef, useEffect } from "react";
 import * as Phaser from "phaser";
 import MainScene from "./scenes/Main/MainScene";
-import LoadingScene from "./scenes/Loading/LoadingScene";
-import LandingScene from "./scenes/Landing/LandingScene";
+import EventEmitter from "eventemitter3";
 
-const Game = () => {
+const Game = ({
+  emitter,
+}: {
+  emitter: EventEmitter<string | symbol, any> | null;
+}) => {
   const gameRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!gameRef.current) return;
+    if (!emitter) return;
 
     const config = {
       type: Phaser.AUTO,
+
       width: "100%",
       height: "100%",
       scale: {
@@ -25,6 +30,7 @@ const Game = () => {
       zoom: window.devicePixelRatio,
       parent: "phaser-game",
       backgroundColor: "#264a89",
+
       // scene: [LandingScene, MainScene, EditorScene, LoadingScene],
       scene: [MainScene],
       pixelArt: true,
@@ -36,13 +42,14 @@ const Game = () => {
     };
 
     const game = new Phaser.Game(config);
+    game.scene.start("Main", { emitter });
 
     return () => {
       if (game) {
         game.destroy(true);
       }
     };
-  }, [gameRef]);
+  }, [gameRef, emitter]);
 
   return <div ref={gameRef} id="phaser-game" />;
 };

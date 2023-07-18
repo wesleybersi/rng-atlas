@@ -2,17 +2,15 @@ import Phaser from "phaser";
 
 import preload from "./methods/preload";
 import create from "./methods/create";
+import EventEmitter from "eventemitter3";
+import { ToolName } from "../../../store/types";
 
-import updateViewport from "./methods/update-viewport";
+import GeoMap from "../../entities/GeoMap/GeoMap";
+import Landmass from "../../entities/Landmass/Landmass";
 import Square from "../../entities/Square/Square";
-
-export enum Climate {
-  Tropical = "Tropical",
-  Mediterranean = "Mediterranean",
-  Arid = "Arid",
-  Temperate = "Temperate",
-  Polar = "Polar",
-}
+import reactEventListener from "./methods/react-events";
+import generateWorldmap from "./methods/form-landmasses";
+import { ClimateName } from "../../entities/GeoMap/land/climates";
 
 export const climateWeights = {
   Tropical: 0.3,
@@ -22,92 +20,124 @@ export const climateWeights = {
   Polar: 0.1,
   Alien: 0.5,
 };
-export interface Territory {
-  name: string;
-  origin: { row: number; col: number };
-  squares: Map<string, Square>;
-  expanse: number;
-  climate: Climate;
-}
 
 export default class MainScene extends Phaser.Scene {
-  renderTexture!: Phaser.GameObjects.RenderTexture;
-  rowCount = 540;
-  colCount = 960;
+  tilemap!: GeoMap;
+  context!: CanvasRenderingContext2D;
+  grid!: Phaser.GameObjects.Grid;
+  isActive = false;
+  hasStarted = false;
+  reactEvents!: EventEmitter<string | symbol, any> | null;
+  // rowCount = 540;
+  // colCount = 960;
+  // rowCount = window.innerHeight;
+  // colCount = window.innerWidth;
+
+  colCount = window.screen.width / 2;
+  rowCount = window.screen.height / 2;
   cellWidth = 1;
   cellHeight = 1;
   deadzoneRect!: Phaser.GameObjects.Rectangle;
   buttons = { meta: false };
   dragStart: { row: number; col: number } | null = null;
   draggingRail = false;
-
+  activeShoreline: Landmass | null = null;
+  hasShoreLine: Set<Landmass> = new Set();
+  occupiedLand: Map<string, Square> = new Map();
   formCount = 0;
+  formingLandmasses = new Set();
+  maxFormingLandmasses = 25;
   viewport: {
     startRow: number;
     startCol: number;
     visibleRows: number;
     visibleCols: number;
   } = { startRow: 0, startCol: 0, visibleCols: 0, visibleRows: 0 };
+  pixelScale = 1;
 
-  parameters = { landmasses: 40, islands: 50 };
-  // parameters = { landmasses: 15, islands: 25 };
-  // parameters = { landmasses: 2, islands: 5 };
-  territories: Map<string, Territory> = new Map();
-  additionals: Map<string, Territory> = new Map();
-  playZoomLevel = 2;
-  editorZoomLevel = 2;
+  client: {
+    tool: ToolName;
+    maxTargetSize: number;
+    climate: ClimateName;
+    generate: {
+      continents: { amount: number; targetSize: number };
+      islands: { amount: number; targetSize: number };
+      isles: { amount: number; targetSize: number };
+    };
+  } = {
+    tool: "Pointer",
+    maxTargetSize: 50,
+    climate: "Temperate",
+    generate: {
+      continents: { amount: 25, targetSize: 200 },
+      islands: { amount: 50, targetSize: 50 },
+      isles: { amount: 75, targetSize: 15 },
+    },
+  };
+  additionals = 0;
+  landmasses: Map<string, Landmass> = new Map();
+  playZoomLevel = 3;
+  selected: { landmass: Landmass | null; islandIndex: number | null } = {
+    landmass: null,
+    islandIndex: null,
+  };
   hover: {
-    row: number;
-    col: number;
     x: number;
     y: number;
-  } = { row: -1, col: -1, x: -1, y: -1 };
+    z: number;
+    zoomLock: { x: number; y: number } | null;
+    landmass: Landmass | null;
+    islandIndex: number | null;
+  } = {
+    x: -1,
+    y: -1,
+    z: -1,
+    zoomLock: null,
+    landmass: null,
+    islandIndex: null,
+  };
 
-  //External Methods
   preload = preload;
   create = create;
-  updateViewport = updateViewport;
+
+  reactEventListener = reactEventListener;
   frameCounter = 0;
   stateText!: Phaser.GameObjects.Text;
   progressText!: Phaser.GameObjects.Text;
   progress = "";
+  generateWorldmap = generateWorldmap;
   constructor() {
     super({ key: "Main" });
   }
 
-  update(time: number, delta: number) {
-    const camera = this.cameras.main;
+  update() {
     this.frameCounter++;
     if (this.frameCounter % 60 === 0) {
       this.frameCounter = 0;
     }
 
-    // camera.deadzone?.setSize(
-    //   camera.worldView.width * 0.4,
-    //   camera.worldView.height * 0.3
+    if (this.isActive && !this.hasStarted) {
+      this.hasStarted = true;
+      this.generateWorldmap();
+    }
+    // this.stateText?.destroy();
+
+    // this.stateText = this.add.text(
+    //   this.cameras.main.worldView.left,
+    //   this.cameras.main.worldView.top,
+    //   `x:${this.hover.x} y:${this.hover.y} z:${this.hover.z}
+    //   ${
+    //     this.hover.landmass
+    //       ? `${this.hover.landmass.name} - ${this.hover.landmass.climate} - ${this.hover.landmass.squares.size}`
+    //       : ""
+    //   }
+    //   Creating: ${this.formingLandmasses.size} / ${this.landmasses.size}
+    //   "Zoom": ${this.cameras.main.zoom.toFixed(2)}`
     // );
-    // if (this.deadzoneRect && camera.deadzone) {
-    //   this.deadzoneRect.x = camera.deadzone.x + camera.deadzone.width / 2;
-    //   this.deadzoneRect.y = camera.deadzone.y + camera.deadzone.height / 2;
-    //   this.deadzoneRect.width = camera.deadzone.width;
-    //   this.deadzoneRect.height = camera.deadzone.height;
-    //   this.deadzoneRect.setDepth(2000);
-    //   this.deadzoneRect.setOrigin(0.5);
-    //   this.deadzoneRect.alpha = 0.05;
-    // }
 
-    // camera.on("followupdate", this.updateViewport, this);
-
-    this.stateText?.destroy();
-
-    this.stateText = this.add.text(
-      this.cameras.main.worldView.left,
-      this.cameras.main.worldView.top,
-      `${this.hover.row} ${this.hover.col}`
-    );
-
-    this.stateText.setDepth(200);
-    this.stateText.setFill(0x222222);
+    // this.stateText.setDepth(200);
+    // this.stateText.setFill(0x222222);
+    // this.stateText.setFontSize(32 / this.cameras.main.zoom);
 
     this.progressText?.destroy();
 

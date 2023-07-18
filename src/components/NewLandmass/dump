@@ -1,0 +1,51 @@
+<div className="combiner">
+        <Slider
+          eventName="Max Elevation"
+          name="Max Elevation"
+          value={100}
+          min={0}
+          max={200}
+        />
+        <span className="hr" />
+        <Slider
+          eventName="Elevation Probability"
+          name="Elevation Probability"
+          value={50}
+          min={0}
+          max={200}
+        />
+      </div>{" "}
+      <div className="combiner">
+        <Slider
+          eventName="Island Probability"
+          name="Island Probability"
+          value={100}
+          min={0}
+          max={200}
+        />
+        <span className="hr" />
+        <Slider
+          eventName="Island Sprawl"
+          name="Island Sprawl"
+          value={50}
+          min={0}
+          max={200}
+        />
+      </div>{" "}
+      <div className="combiner">
+        <Slider
+          eventName="Water Bodies"
+          name="Water Bodies"
+          value={235}
+          min={200}
+          max={250}
+        />
+        <span className="hr" />
+        <Slider
+          eventName="Max River Length"
+          name="Max River Length"
+          value={128}
+          min={0}
+          max={500}
+        />
+      </div>
