@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import MainScene from "../../scenes/Main/MainScene";
 import { oneIn, random } from "../../utils/helper-functions";
-import { ClimateName } from "../GeoMap/land/climates";
+import { ClimateName, climates } from "../GeoMap/land/climates";
 
 import Square from "../Square/Square";
 
@@ -138,7 +138,8 @@ class Landmass {
           this.origin.x,
           this.origin.elevation,
           this,
-          0
+          0,
+          random(random(climates.get(this.climate)?.colors.length ?? 0))
         ).expand(true);
       }
       const squares = Array.from(this.islands[islandIndex]);
@@ -315,7 +316,7 @@ class Landmass {
     }
     for (const square of Array.from(this.islands[islandIndex])) {
       if (square.isWaterBorder) {
-        this.scene.tilemap.placeShoreLine(square.x, square.y, 0.25);
+        this.scene.tilemap.placeShoreLine(square.x, square.y, 0.175);
       }
     }
   }

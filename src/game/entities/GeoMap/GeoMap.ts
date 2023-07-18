@@ -3,6 +3,8 @@ import MainScene from "../../scenes/Main/MainScene";
 import { seaColors } from "./sea/colors";
 import Landmass from "../Landmass/Landmass";
 import { ClimateName, climates } from "./land/climates";
+import { random } from "../../utils/helper-functions";
+import getAverageColor from "./land/average";
 
 export default class GeoMap {
   scene: MainScene;
@@ -72,7 +74,8 @@ export default class GeoMap {
   placeLandtile(
     x: number,
     y: number,
-    set: ClimateName,
+    climateName: ClimateName,
+    climateSet: number,
     landmass: Landmass,
     elevation: number,
     tint?: number
@@ -83,11 +86,23 @@ export default class GeoMap {
     const newTile = this.land.putTileAt(0, x, y);
     if (!newTile) return;
 
-    const climate = climates.get(set);
+    const climate = climates.get(climateName);
     if (!climate) return;
 
-    newTile.properties = { climate: set, landmass, elevation };
-    newTile.tint = tint ?? climate.colors[elevation];
+    newTile.properties = { climate: climateName, landmass, elevation };
+    newTile.tint = tint ?? climate.colors[climateSet][elevation];
+    newTile.alpha = 1;
+    newTile.width = this.scene.pixelScale;
+    newTile.height = this.scene.pixelScale;
+  }
+  placeAverageTile(x: number, y: number, color1: number, color2: number) {
+    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+      return;
+    }
+    const newTile = this.land.putTileAt(0, x, y);
+    if (!newTile) return;
+
+    newTile.tint = getAverageColor(color1, color2);
     newTile.alpha = 1;
     newTile.width = this.scene.pixelScale;
     newTile.height = this.scene.pixelScale;

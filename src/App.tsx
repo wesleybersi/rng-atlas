@@ -14,6 +14,7 @@ import { ToolName } from "./store/types";
 import Landmass from "./game/entities/Landmass/Landmass";
 import Expand from "./components/Expand/Expand";
 import Rivers from "./components/Rivers/Rivers";
+import getAverageColor from "./game/entities/GeoMap/land/average";
 
 function App() {
   const emitter = useEventEmitter();
@@ -84,6 +85,10 @@ function App() {
         break;
     }
   }, [hover.landmass, clientData.tool]);
+
+  useEffect(() => {
+    console.log(getAverageColor(0xff0000, 0xffff00));
+  }, []);
 
   return (
     <div className="App" style={{ cursor: forcePointer ? "pointer" : "" }}>

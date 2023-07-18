@@ -8,6 +8,7 @@ import Ice from "../Ice/Ice";
 import Landmass from "../Landmass/Landmass";
 import { canvasColors } from "../GeoMap/land/canvasColors";
 import { climates } from "../GeoMap/land/climates";
+import getAverageColor from "../GeoMap/land/average";
 
 class Square {
   scene: MainScene;
@@ -15,6 +16,7 @@ class Square {
   x: number;
   active = true;
   climate: Climate;
+  climateSet: number;
   elevation: number;
   landmass: Landmass;
   expanded = false;
@@ -35,7 +37,8 @@ class Square {
     x: number,
     elevation: number,
     landmass: Landmass,
-    islandIndex: number
+    islandIndex: number,
+    climateSet = 0
   ) {
     if (y < 0 || x < 0 || y > scene.rowCount || x > scene.colCount) {
       this.remove();
@@ -47,8 +50,10 @@ class Square {
     this.climate = climates.get(this.landmass.climate)!;
     this.elevation =
       elevation > 7 && oneIn(landmass.mountainProbability)
-        ? this.climate.colors.length - random(12)
+        ? Math.max(this.climate.colors[climateSet].length - random(12), 0)
         : elevation;
+
+    this.climateSet = climateSet;
 
     this.scene.occupiedLand.set(`${x},${y}`, this);
     this.landmass.squares.set(`${y},${x}`, this);
@@ -61,7 +66,7 @@ class Square {
       left: { y, x: x - 1 },
     };
 
-    this.formSnowPeaks(false);
+    // this.formSnowPeaks(false);
     this.draw();
 
     //Event listener listening to specific event
@@ -85,21 +90,21 @@ class Square {
     return Object.values(this.surroundings).sort(() => Math.random() - 0.5);
   }
 
-  formSnowPeaks(force: boolean) {
-    this.hasSnow =
-      this.elevation >= this.climate.colors.length - 3 && (oneIn(50) || force);
-    if (force) this.hasSnow = true;
-    if (this.hasSnow) {
-      this.scene.tilemap.placeSnowPeak(this.x, this.y);
-      for (const { x, y } of this.shuffledSurroundings()) {
-        if (oneIn(4)) continue;
-        const square = this.landmass.squares.get(`${y},${x}`);
-        if (square && !square.hasSnow && oneIn(2)) {
-          square.formSnowPeaks(true);
-        }
-      }
-    }
-  }
+  // formSnowPeaks(force: boolean) {
+  //   this.hasSnow =
+  //     this.elevation >= this.climate.colors[this.climateSet].length - 5 &&
+  //     (oneIn(50) || force);
+  //   if (force) this.hasSnow = true;
+  //   if (this.hasSnow) {
+  //     this.scene.tilemap.placeSnowPeak(this.x, this.y);
+  //     for (const { x, y } of this.shuffledSurroundings()) {
+  //       const square = this.scene.occupiedLand.get(`${x},${y}`);
+  //       if (square && !square.hasSnow && oneIn(2)) {
+  //         square.formSnowPeaks(true);
+  //       }
+  //     }
+  //   }
+  // }
 
   draw() {
     if (!this.active) return;
@@ -121,7 +126,8 @@ class Square {
     this.scene.tilemap.placeLandtile(
       this.x,
       this.y,
-      this.landmass.climate,
+      this.climate.name,
+      this.climateSet,
       this.landmass,
       this.elevation,
       undefined
@@ -245,6 +251,50 @@ class Square {
     };
     requestAnimationFrame(carve);
   }
+  merge(amount: number, forceColor: number, mergingSet = new Set()) {
+    if (amount === 0) return;
+    amount--;
+    mergingSet.add(`${this.x},${this.y}`);
+    for (const { x, y } of this.shuffledSurroundings()) {
+      if (mergingSet.has(`${x},${y}`)) continue;
+      const neighbor = this.scene.occupiedLand.get(`${x},${y}`);
+      if (!neighbor) continue;
+
+      const color1 = forceColor;
+      const color2 =
+        neighbor.climate.colors[neighbor.climateSet][neighbor.elevation];
+      const averageColor = getAverageColor(color1, color2);
+
+      this.scene.tilemap.shoreLine.removeTileAt(this.x, this.y);
+      this.scene.tilemap.shoreLine.removeTileAt(neighbor.x, neighbor.y);
+
+      neighbor.landmass.squares.delete(`${neighbor.y},${neighbor.x}`);
+      this.landmass.squares.set(`${neighbor.y},${neighbor.x}`, neighbor);
+      neighbor.climate = this.climate;
+      neighbor.climateSet = this.climateSet;
+      neighbor.elevation = this.elevation;
+
+      this.scene.tilemap.placeLandtile(
+        this.x,
+        this.y,
+        this.climate.name,
+        this.climateSet,
+        this.landmass,
+        this.elevation,
+        averageColor
+      );
+      this.scene.tilemap.placeLandtile(
+        neighbor.x,
+        neighbor.y,
+        neighbor.climate.name,
+        neighbor.climateSet,
+        neighbor.landmass,
+        neighbor.elevation,
+        averageColor
+      );
+      if (oneIn(2)) neighbor.merge(amount, color2, mergingSet);
+    }
+  }
   expand(fullExpand?: boolean): boolean {
     //Possibly extends square in four directions.
     //Returns true if succesful
@@ -255,7 +305,8 @@ class Square {
     const { climate, terrainDifference } = this.landmass;
 
     const r = random(terrainDifference);
-    const amount = random(3);
+
+    let merge = false;
     for (const { x, y } of this.shuffledSurroundings()) {
       if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount)
         continue;
@@ -263,16 +314,25 @@ class Square {
       if (fullExpand || oneIn(2)) {
         if (!occupiedLand.has(`${x},${y}`)) {
           let elevation = this.elevation;
-          if (r === 1) elevation -= amount;
-          if (r === 2) elevation += amount;
+          if (r === 1) elevation -= random(2);
+          if (r === 2) elevation += random(4);
 
           if (elevation > 12) {
             elevation += random(10) - random(10);
           }
 
-          if (elevation > this.climate.colors.length - 1) {
-            elevation = this.climate.colors.length - 1;
+          if (elevation > this.climate.colors[this.climateSet].length - 1) {
+            elevation = this.climate.colors[this.climateSet].length - 1;
           } else if (elevation < 0) elevation = 0;
+
+          if (oneIn(150)) {
+            if (this.climateSet < this.climate.colors.length - 1) {
+              this.climateSet++;
+              console.log(this.climateSet);
+            } else {
+              this.climateSet = 0;
+            }
+          }
 
           new Square(
             this.scene,
@@ -280,13 +340,19 @@ class Square {
             x,
             elevation,
             this.landmass,
-            this.islandIndex
+            this.islandIndex,
+            this.climateSet
           );
         } else {
-          //merge smaller island into bigger island
+          if (!this.landmass.squares.has(`${y},${x}`)) merge = true;
         }
       }
     }
+    if (merge)
+      this.merge(
+        random(100),
+        this.climate.colors[this.climateSet][this.elevation]
+      );
 
     return true;
   }

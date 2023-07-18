@@ -6,6 +6,7 @@ import { BiExpand as IconExpand } from "react-icons/bi";
 import { BiServer as IconDiminish } from "react-icons/bi";
 import { BiTrash as IconRemove } from "react-icons/bi";
 import { GiRiver as IconRiver } from "react-icons/gi";
+import { MdLensBlur as IconBlur } from "react-icons/md";
 
 import useStore from "../../store/store";
 import { ToolName } from "../../store/types";
@@ -72,17 +73,9 @@ const tools: Tool[] = [
     icon: IconExpand,
   },
   {
-    name: "Diminish",
-    icon: IconDiminish,
+    name: "Blur",
+    icon: IconBlur,
   },
-  {
-    name: "Remove",
-    icon: IconRemove,
-  },
-  //   {
-  // name: "Fill",
-  // icon: IconFill,
-  //   },
   {
     name: "River Tool",
     icon: IconRiver,

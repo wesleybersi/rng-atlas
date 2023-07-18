@@ -68,6 +68,12 @@ export default function create(this: MainScene, data: any) {
           this.hover.z = object.elevation;
 
           this.hover.landmass = object.landmass;
+
+          if (this.client.tool === "Blur") {
+            if (pointer.isDown) {
+              object.merge(random(25));
+            }
+          }
         }
       }
     );
@@ -146,6 +152,8 @@ export default function create(this: MainScene, data: any) {
           return;
         }
         break;
+      case "Blur":
+        return;
       case "Diminish":
         if (this.hover.landmass) {
           const square = this.hover.landmass.squares.get(

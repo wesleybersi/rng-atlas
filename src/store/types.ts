@@ -23,7 +23,8 @@ export type ToolName =
   | "Expand"
   | "Diminish"
   | "Remove"
-  | "River Tool";
+  | "River Tool"
+  | "Blur";
 
 export interface ClientData {
   maxTargetSize: number;
