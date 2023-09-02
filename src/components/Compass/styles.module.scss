@@ -1,0 +1,55 @@
+@import "../../styles/mixins.scss";
+
+.wrapper {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 4rem;
+  height: 4rem;
+  .rose {
+    @include backdrop;
+    border-radius: 50%;
+    height: 100%;
+    height: 100%;
+    position: relative;
+
+    &:hover {
+      rotate: 45deg;
+    }
+    span {
+      position: absolute;
+      background: var(--text-color);
+      --short: 3px;
+      --long: 8px;
+    }
+    .north {
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: var(--short);
+      height: var(--long);
+      background: red;
+    }
+    .east {
+      top: 50%;
+      right: 0;
+      width: var(--long);
+      height: var(--short);
+      transform: translateY(-50%);
+    }
+    .south {
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: var(--short);
+      height: var(--long);
+    }
+    .west {
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: var(--long);
+      height: var(--short);
+    }
+  }
+}

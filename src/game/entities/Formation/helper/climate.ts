@@ -6,7 +6,7 @@ export default function randomClimate(
   x: number,
   y: number
 ): ClimateName {
-  const { rowCount, colCount } = scene;
+  const { mapHeight: rowCount, mapWidth: colCount } = scene;
   const climateWeights = {
     Polar:
       (y > rowCount / 6 && y < rowCount - rowCount / 6) ||
@@ -14,6 +14,7 @@ export default function randomClimate(
       x > colCount - colCount / 4
         ? 0.025
         : 0.95,
+    SubArctic: y > rowCount / 4 && y < rowCount - rowCount / 4 ? 0.025 : 0.95,
     Rocky: 0.15,
     Mediterranean: 0.25,
     Tropical: y > rowCount / 3 && y < rowCount - rowCount / 3 ? 0.2 : 0,

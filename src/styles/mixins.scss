@@ -1,0 +1,19 @@
+@mixin backdrop($blur: 8px) {
+  // Default light mode styles
+  background: var(--background-color);
+  color: var(--text-color);
+  backdrop-filter: blur($blur);
+}
+
+@mixin box-shadow {
+  box-shadow: 0 0 64px 4px rgba(0, 0, 0, 0.1);
+}
+
+@mixin text-input {
+  padding: 0.75rem;
+  border: none;
+  font-size: 1rem;
+  &:focus {
+    outline: none;
+  }
+}

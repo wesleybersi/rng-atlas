@@ -16,28 +16,28 @@ const NewLandmass = () => {
   const { emitter, clientData } = useStore();
   const [tabIndex, setTabIndex] = useState<number>(-1);
 
-  useEffect(() => {
-    console.log(climateKeys);
-    console.log(climateKeys.indexOf(clientData.climate));
-  }, [clientData.climate]);
-
+  if (!clientData.climate) return <></>;
   return (
-    <section className={styles.wrapper} style={{ right: "2rem" }}>
-      <header className={styles.header}>
-        <h2>Generate Landmass</h2>
+    <section className={styles.wrapper}>
+      <section className={styles.header}>
+        <h2>Generate / Expand Landmass</h2>
         <p>
-          Shape a new landmass by left clicking anywhere on the ocean. Though
-          the shapes will be generated randomly, you can refine the outcomes to
-          your liking by adjusting the settings below.
+          <span className="b">Left click</span> anywhere in the ocean to start
+          the procedural generation of a new landmass, or click on an existing
+          landmass to expand it.
         </p>
-      </header>
+        <p>
+          <span className="b">Right click</span> on a generating landmass to
+          stop it from expanding further.
+        </p>
+      </section>
 
       <Slider
         eventName="Max Target Size"
-        name="Target Size"
+        name="Target Expanse"
         value={clientData.maxTargetSize}
-        min={0}
-        max={350}
+        min={1}
+        max={7500}
         steps={[
           "Tiny",
           "Very small",
@@ -47,8 +47,8 @@ const NewLandmass = () => {
           "Very large",
           "Huge",
           "Massive",
-          "Enormous",
         ]}
+        precise
       />
       <Slider
         eventName="Climate Change"
@@ -62,7 +62,7 @@ const NewLandmass = () => {
 
       <Tab
         opensAt={0}
-        amount={4}
+        amount={5}
         index={tabIndex}
         setIndex={setTabIndex}
         Icon={IconMountain}
@@ -115,7 +115,7 @@ const NewLandmass = () => {
       </Tab>
       <Tab
         opensAt={2}
-        amount={4}
+        amount={5}
         index={tabIndex}
         setIndex={setTabIndex}
         Icon={IconIslands}
@@ -164,7 +164,7 @@ const NewLandmass = () => {
       </Tab>
       <Tab
         opensAt={1}
-        amount={4}
+        amount={5}
         index={tabIndex}
         setIndex={setTabIndex}
         Icon={IconRivers}
@@ -223,7 +223,7 @@ const NewLandmass = () => {
       </Tab>
       <Tab
         opensAt={3}
-        amount={4}
+        amount={5}
         index={tabIndex}
         setIndex={setTabIndex}
         Icon={IconVillage}

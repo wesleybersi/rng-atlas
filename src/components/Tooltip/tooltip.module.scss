@@ -1,0 +1,9 @@
+.tooltip {
+  background-color: var(--background-color);
+  backdrop-filter: blur(4px);
+  color: var(--text-color);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 1200;
+  font-weight: 600;
+}

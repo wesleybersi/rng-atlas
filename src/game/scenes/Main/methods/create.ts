@@ -1,47 +1,28 @@
 import Square from "../../../entities/Square/Square";
 import MainScene from "../MainScene";
-import GeoMap from "../../../entities/GeoMap/GeoMap";
-import Landmass from "../../../entities/Landmass/Landmass";
-import randomClimate from "../../../entities/Landmass/helper/climate";
-import generateRandomCountryName from "../../../entities/Landmass/helper/random-name";
-import { random } from "../../../utils/helper-functions";
+
+import Formation from "../../../entities/Formation/Formation";
+
+import generateRandomCountryName from "../../../entities/Formation/helper/random-name";
+import { oneIn, random } from "../../../utils/helper-functions";
 import { seaBg, seaColors } from "../../../entities/GeoMap/sea/colors";
+import climates from "../../../entities/GeoMap/land/climates";
 
 export default function create(this: MainScene, data: any) {
   //ANCHOR React <--> Phaser
   this.reactEvents = data.emitter;
   this.reactEventListener();
 
-  const worldWidth = this.colCount;
-  const worldHeight = this.rowCount;
-
   //ANCHOR Camera
   const camera = this.cameras.main;
 
   camera.setBackgroundColor(seaBg[random(seaBg.length)]);
+  camera.setBackgroundColor(0x11314e);
+  camera.setBackgroundColor(0x125f75);
 
-  camera.setBounds(0, 0, worldWidth, worldHeight);
-  camera.zoom = this.playZoomLevel;
-  camera.roundPixels = true;
+  camera.zoom = 3;
 
-  this.grid = this.add.grid(
-    0,
-    0,
-    this.colCount * 2,
-    this.rowCount * 2,
-    64,
-    64,
-    undefined,
-    0,
-    0xffffff,
-    0.05
-  );
-
-  this.grid.setStrokeStyle(1, 0xffffff);
-  this.grid.scale = 0.5;
-  this.grid.setOrigin(0, 0);
-
-  this.tilemap = new GeoMap(this);
+  camera.setRoundPixels(true);
 
   //ANCHOR Pointer events
   this.input.mouse?.disableContextMenu();
@@ -49,170 +30,174 @@ export default function create(this: MainScene, data: any) {
     this.hover.x = Math.floor(pointer.worldX);
     this.hover.y = Math.floor(pointer.worldY);
 
-    this.hover.zoomLock = null;
-
     if (pointer.rightButtonDown()) {
-      camera.scrollX -= (pointer.x - pointer.prevPosition.x + 1) / camera.zoom;
-      camera.scrollY -= (pointer.y - pointer.prevPosition.y + 1) / camera.zoom;
-      return;
+      const camera = this.cameras.main;
+      const deltaX = (pointer.x - pointer.prevPosition.x) / camera.zoom;
+      const deltaY = (pointer.y - pointer.prevPosition.y) / camera.zoom;
+
+      // Convert the deltas to the camera's coordinate system
+      const angle = Phaser.Math.DegToRad(this.client.rotation);
+      const newDeltaX = deltaX * Math.cos(angle) - deltaY * Math.sin(angle);
+      const newDeltaY = deltaX * Math.sin(angle) + deltaY * Math.cos(angle);
+
+      // Update the camera position to pan
+      camera.scrollX -= newDeltaX;
+      camera.scrollY -= newDeltaY;
     }
 
-    let hasObject = false;
-    this.events.emit(
-      `${this.hover.y},${this.hover.x}`,
-      "Ping",
-      (object: Square) => {
-        if (object) {
-          if (!object.landmass.hasFormed) return;
-          hasObject = true;
-          this.hover.z = object.elevation;
+    const square = this.occupiedLand.get(`${this.hover.x},${this.hover.y}`);
 
-          this.hover.landmass = object.landmass;
-
-          if (this.client.tool === "Blur") {
-            if (pointer.isDown) {
-              object.merge(random(25));
-            }
-          }
-        }
+    if (square) {
+      if (!square.landmass.hasFormed) return;
+      this.hover.z = square.elevation;
+      this.hover.formation = square.landmass;
+      this.hover.country = square.country;
+    } else if (!square) {
+      if (this.hover.formation) {
+        this.hover.formation = null;
       }
-    );
-
-    if (!hasObject) {
-      if (this.hover.landmass) {
-        // this.hover.landmass.hideBorder(
-        //   this.pixelScale === 1 && this.hover.landmass.hasFormed
-        //     ? true
-        //     : undefined
-        // );
-        this.hover.landmass = null;
+      if (this.hover.country) {
+        this.hover.country = null;
       }
       this.hover.z = 0;
     }
     this.reactEvents?.emit("Hover Update", this.hover);
   });
-  // this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
-  //   if (!pointer.rightButtonDown()) {
-  //     this.cameras.main.pan(pointer.worldX, pointer.worldY, 500, "Sine");
-  //   }
-  // });
+  this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+    if (this.eraser.landmasses.size > 0) {
+      console.log(this.eraser.landmasses);
+      for (const landmass of this.eraser.landmasses) {
+        landmass.defineIslands();
+      }
+      this.eraser.landmasses.clear();
+      return;
+    }
+    if (this.isDragging) {
+      const landmasses: Set<Formation> = new Set();
+
+      for (const movingSquare of this.isDragging.squares) {
+        const tile = this.tilemap.land.putTileAt(
+          0,
+          movingSquare.x,
+          movingSquare.y
+        );
+        tile.tint = movingSquare.color;
+        movingSquare.updateSurroundings();
+
+        const squareInPlace = this.occupiedLand.get(
+          `${movingSquare.x},${movingSquare.y}`
+        );
+        if (squareInPlace) {
+          landmasses.add(squareInPlace.landmass);
+          if (squareInPlace.landmass !== movingSquare.landmass) {
+            for (const square of movingSquare.landmass.landmasses[
+              movingSquare.islandIndex
+            ]) {
+              square.landmass.squares.delete(`${square.y},${square.x}`);
+              square.landmass = squareInPlace.landmass;
+              square.landmass.squares.set(`${square.y},${square.x}`, square);
+            }
+          }
+          squareInPlace.remove();
+        }
+
+        this.occupiedLand.set(
+          `${movingSquare.x},${movingSquare.y}`,
+          movingSquare
+        );
+
+        movingSquare.merge(random(100), tile.tint, 1);
+      }
+      for (const landmass of landmasses) {
+        console.log("Landmass:", landmass);
+        landmass.defineIslands();
+      }
+    }
+    this.isDragging = null;
+  });
 
   this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-    // if (pointer.rightButtonDown()) {
-    //   this.events.emit(
-    //     `${this.hover.y},${this.hover.x}`,
-    //     "Ping",
-    //     (object: Square) => {
-    //       if (object) {
-    //         // object.subtract(Math.max(random(4), 2));
-    //         object.formRiver();
-    //         // object.landmass.defineIslands();
-    //       }
-    //     }
-    //   );
-    //   return;
-    // }
+    if (!pointer.rightButtonDown()) this.tilemap.clearBorder();
     switch (this.client.tool) {
       case "Pointer":
         if (pointer.rightButtonDown()) {
-          this.selected.landmass?.hideBorder(true);
-          this.selected.landmass = null;
-          this.selected.islandIndex = null;
+          // if (this.selected.landmass && this.selected.islandIndex !== null) {
+          //   this.tilemap.clearBorder();
+          // }
+          // this.selected.landmass = null;
+          // this.selected.islandIndex = null;
+          return;
         } else {
-          this.selected.landmass?.hideBorder(true);
-          this.selected.landmass = this.hover.landmass;
+          if (this.selected.formation && this.selected.massIndex !== null) {
+            this.tilemap.clearBorder();
+          }
+          this.selected.formation = this.hover.formation;
+          this.selected.country = this.hover.country;
         }
-        if (this.selected) {
-          this.events.emit(
-            `${this.hover.y},${this.hover.x}`,
-            "Ping",
-            (object: Square) => {
-              if (object) {
-                this.selected.landmass?.showBorder(object.islandIndex);
-                this.selected.islandIndex = object.islandIndex;
-              }
+        if (this.client.selectMode === "Landmass") {
+          if (this.selected.formation) {
+            const square = this.occupiedLand.get(
+              `${this.hover.x},${this.hover.y}`
+            );
+            if (square) {
+              this.selected.formation?.showBorder(square.islandIndex);
+              this.selected.massIndex = square.islandIndex;
             }
-          );
+          }
+        } else if (this.client.selectMode === "Country") {
+          if (this.selected.country) {
+            this.selected.country.showBorder();
+          }
         }
-        this.reactEvents?.emit("New Selection", this.selected);
-        break;
-      case "Expand":
-        if (this.hover.landmass) {
-          const square = this.hover.landmass.squares.get(
-            `${this.hover.y},${this.hover.x}`
-          );
-          if (!square) return;
-          const index = square.islandIndex;
 
-          this.hover.landmass.hideShoreLine();
-          this.hover.landmass.targetExpanse = this.client.maxTargetSize;
-          console.log(this.hover.landmass.targetExpanse);
-          this.hover.landmass.priority = true;
-          this.hover.landmass.expandMass(square.islandIndex);
-          return;
-        }
+        this.reactEvents?.emit("New Selection", this.selected);
+
         break;
-      case "Blur":
-        return;
-      case "Diminish":
-        if (this.hover.landmass) {
-          const square = this.hover.landmass.squares.get(
-            `${this.hover.y},${this.hover.x}`
-          );
-          if (!square) return;
-          this.hover.landmass.hideShoreLine();
-          this.hover.landmass.targetExpanse = this.client.maxTargetSize;
-          this.hover.landmass.priority = true;
-          this.hover.landmass.diminishMass(square.islandIndex);
-          return;
-        }
-        break;
-      case "Remove":
-        if (this.hover.landmass) {
-          const square = this.hover.landmass.squares.get(
-            `${this.hover.y},${this.hover.x}`
-          );
-          if (!square) return;
-          this.hover.landmass.hideShoreLine();
-          this.hover.landmass.targetExpanse = this.client.maxTargetSize;
-          this.hover.landmass.priority = true;
-          this.hover.landmass.removeMass(square.islandIndex);
-          return;
-        }
-        break;
+
       case "Generate":
         {
-          if (pointer.rightButtonDown()) return;
-          if (this.hover.landmass) return;
-          const targetSize = this.client.maxTargetSize;
-          const newIsland = new Landmass(
+          if (pointer.rightButtonDown()) {
+            const square = this.occupiedLand.get(
+              `${this.hover.x},${this.hover.y}`
+            );
+            if (!square) return;
+            if (!square.landmass.hasFormed) square.landmass.forceFinish = true;
+            return;
+          }
+
+          if (this.hover.formation) {
+            const square = this.occupiedLand.get(
+              `${this.hover.x},${this.hover.y}`
+            );
+            if (!square) return;
+
+            this.hover.formation.hideShoreLine(square.islandIndex);
+            // this.hover.landmass.targetExpanse = this.client.maxTargetSize;
+            this.hover.formation.priority = true;
+            this.hover.formation.form(
+              square.islandIndex,
+              this.client.maxTargetSize
+            );
+            return;
+          }
+
+          const climate = climates.get(this.client.climate);
+          if (!climate) return;
+          const newIsland = new Formation(
             this,
             generateRandomCountryName(),
             { x: this.hover.x, y: this.hover.y, elevation: random(10) },
             new Map(),
-            targetSize,
-            this.client.climate
-            // randomClimate(this, this.hover.x, this.hover.y)
+            climate
           );
           newIsland.priority = true;
-          newIsland.expandMass();
+          newIsland.form(undefined, this.client.maxTargetSize);
         }
         break;
-      case "River Tool": {
-        this.events.emit(
-          `${this.hover.y},${this.hover.x}`,
-          "Ping",
-          (object: Square) => {
-            if (object) {
-              object.formRiver(undefined, this.client.maxTargetSize);
-            }
-          }
-        );
-      }
     }
   });
 
-  let hasObject = this.hover.landmass ? true : false;
+  let hasObject = this.hover.formation ? true : false;
   this.events.emit(
     `${this.hover.y},${this.hover.x}`,
     "Ping",
@@ -227,22 +212,44 @@ export default function create(this: MainScene, data: any) {
   //ANCHOR Keyboard events
   this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
     switch (event.key) {
-      case "PageUp":
-        if (this.playZoomLevel < 10) this.playZoomLevel++;
-        this.cameras.main.zoom = this.playZoomLevel;
+      case "PageUp": {
+        if (camera.zoom >= 10) break;
+        this.tweens.add({
+          targets: camera,
+          zoom: Math.ceil(camera.zoom + 1),
+          duration: 500,
+          ease: "Sine.easeInOut",
+        });
         break;
-      case "PageDown":
-        if (this.playZoomLevel > 1) this.playZoomLevel--;
-        this.cameras.main.zoom = this.playZoomLevel;
+      }
+      case "PageDown": {
+        if (camera.zoom <= 1) break;
+        this.tweens.add({
+          targets: camera,
+          zoom: Math.floor(camera.zoom - 1),
+          duration: 500,
+          ease: "Sine.easeInOut",
+        });
         break;
+      }
       case "Home":
-        this.playZoomLevel = 3;
-        this.cameras.main.zoom = this.playZoomLevel;
+        camera.zoom = 3;
         break;
       case "Meta":
         this.buttons.meta = true;
         break;
-
+      case "e":
+        this.rotate = "Right";
+        break;
+      case "q":
+        this.rotate = "Left";
+        break;
+      case "r":
+        this.client.rotation = 0;
+        break;
+      case "c":
+        this.tilemap.country.alpha = 0;
+        break;
       case "=":
         if (this.scale.isFullscreen) {
           this.scale.stopFullscreen();
@@ -252,10 +259,20 @@ export default function create(this: MainScene, data: any) {
         break;
     }
   });
+
   this.input.keyboard?.on("keyup", (event: KeyboardEvent) => {
     switch (event.key) {
       case "Meta":
         this.buttons.meta = false;
+        break;
+      case "e":
+        this.rotate = "None";
+        break;
+      case "q":
+        this.rotate = "None";
+        break;
+      case "c":
+        this.tilemap.country.alpha = 1;
         break;
     }
   });
@@ -264,23 +281,32 @@ export default function create(this: MainScene, data: any) {
     "wheel",
     (pointer: Phaser.Input.Pointer) => {
       const prevZoom = camera.zoom;
+      const zoomFactor = 1.12;
+
       if (pointer.deltaY < 0) {
-        camera.zoom *= 1.1;
+        camera.zoom *= zoomFactor;
       } else if (pointer.deltaY > 0) {
-        camera.zoom /= 1.1;
-        if (camera.zoom <= 2) camera.zoom = 2;
+        camera.zoom /= zoomFactor;
+        camera.zoom = Math.max(this.minZoom, camera.zoom); // Cap the zoom at 2
       }
 
-      camera.pan(pointer.worldX, pointer.worldY, 0, "Sine");
+      // Calculate the zoom ratio and the difference in camera position
+      const zoomRatio = camera.zoom / prevZoom;
+      const dx = (pointer.worldX - camera.worldView.centerX) * (1 - zoomRatio);
+      const dy = (pointer.worldY - camera.worldView.centerY) * (1 - zoomRatio);
+
+      // Adjust the camera position to keep the pointer position fixed during zoom
+      camera.scrollX -= dx;
+      camera.scrollY -= dy;
 
       if (prevZoom > 2 && camera.zoom < 2) {
-        for (const [_, landmass] of this.landmasses) {
+        for (const [_, landmass] of this.formations) {
           this.pixelScale = 2;
           landmass.redraw();
         }
         return;
       } else if (prevZoom < 2 && camera.zoom > 2) {
-        for (const [_, landmass] of this.landmasses) {
+        for (const [_, landmass] of this.formations) {
           this.pixelScale = 1;
           landmass.redraw();
         }
@@ -290,5 +316,5 @@ export default function create(this: MainScene, data: any) {
     this
   );
   this.reactEvents?.emit("Client Update", this.client);
-  // this.cameras.main.fadeIn(1000);
+  this.cameras.main.fadeIn(250);
 }

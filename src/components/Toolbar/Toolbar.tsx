@@ -1,48 +1,64 @@
 import styles from "./styles.module.scss";
+import "../../styles/animations.scss";
 
-import { FaMousePointer as IconPointer } from "react-icons/fa";
-import { GiIceland as IconGenerate } from "react-icons/gi";
-import { BiExpand as IconExpand } from "react-icons/bi";
-import { BiServer as IconDiminish } from "react-icons/bi";
-import { BiTrash as IconRemove } from "react-icons/bi";
-import { GiRiver as IconRiver } from "react-icons/gi";
-import { MdLensBlur as IconBlur } from "react-icons/md";
+import { BsHandIndex as IconPointer } from "react-icons/bs";
+import { GiFloatingPlatforms as IconGenerate } from "react-icons/gi";
+import { GiPerspectiveDiceSixFacesRandom as IconRandom } from "react-icons/gi";
 
 import useStore from "../../store/store";
 import { ToolName } from "../../store/types";
 import { IconType } from "react-icons";
 import { useEffect } from "react";
 
-const Toolbar = () => {
-  const { emitter, clientData } = useStore();
+interface Props {
+  setHover: React.Dispatch<
+    React.SetStateAction<{
+      x: number;
+      y: number;
+      landmass: string;
+      country: string;
+      tooltip: string;
+    }>
+  >;
+}
+
+const Toolbar: React.FC<Props> = ({ setHover }) => {
+  const { emitter, clientData, mapData } = useStore();
   const { tool } = clientData;
 
   useEffect(() => {
     if (!emitter) return;
     function keydown(event: KeyboardEvent) {
-      switch (event.key) {
-        case "1":
-          emitter?.emit("Tool Change", tools[0].name);
+      const numbers = "1234567890";
+      let valid = false;
+      for (const number of numbers) {
+        if (event.key === number) {
+          valid = true;
           break;
-        case "2":
-          emitter?.emit("Tool Change", tools[1].name);
-          break;
-        case "3":
-          emitter?.emit("Tool Change", tools[2].name);
-          break;
-        case "4":
-          emitter?.emit("Tool Change", tools[3].name);
-          break;
+        }
+      }
+      if (valid) {
+        emitter?.emit("Tool Change", tools[Number(event.key) - 1].name);
       }
     }
     window.addEventListener("keydown", keydown);
   }, [emitter]);
   return (
     <section className={styles.toolbar}>
-      {tools.map(({ name, icon: Icon }, index) => (
+      {tools.map(({ name, icon: Icon, tooltip }, index) => (
         <button
+          onMouseEnter={() => setHover((prev) => ({ ...prev, tooltip }))}
+          onMouseLeave={() => setHover((prev) => ({ ...prev, tooltip: "" }))}
           onClick={() => emitter?.emit("Tool Change", name)}
-          style={{ outline: tool === name ? "4px solid lightblue" : "" }}
+          style={{
+            outline: tool === name ? "2px solid white" : "",
+            animation:
+              name === "Generate" &&
+              mapData.expanse === 0 &&
+              tool !== "Generate"
+                ? "glow 500ms linear alternate infinite"
+                : "",
+          }}
         >
           <Icon size="50%" />
           <span>{index + 1}</span>
@@ -56,28 +72,48 @@ export default Toolbar;
 
 interface Tool {
   name: ToolName;
+  tooltip: string;
   icon: IconType;
 }
 
 const tools: Tool[] = [
   {
     name: "Pointer",
+    tooltip: "Pointer",
     icon: IconPointer,
   },
   {
     name: "Generate",
+    tooltip: "Generate / Expand landmass",
     icon: IconGenerate,
   },
-  {
-    name: "Expand",
-    icon: IconExpand,
-  },
-  {
-    name: "Blur",
-    icon: IconBlur,
-  },
-  {
-    name: "River Tool",
-    icon: IconRiver,
-  },
+  { name: "Randomize", tooltip: "Randomize", icon: IconRandom },
+  // {
+  //   name: "Move",
+  //   icon: IconMove,
+  // },
+  // {
+  //   name: "Brush",
+  //   icon: IconBrush,
+  // },
+  // {
+  //   name: "Elevate",
+  //   icon: IconMountain,
+  // },
+  // {
+  //   name: "Erase",
+  //   icon: IconErase,
+  // },
+  // {
+  //   name: "WaterLevel",
+  //   icon: IconErase,
+  // },
+  // {
+  //   name: "Settlements",
+  //   icon: IconVillage,
+  // },
+  // {
+  //   name: "River Tool",
+  //   icon: IconRiver,
+  // },
 ];

@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import MainScene from "../../scenes/Main/MainScene";
 import { seaColors } from "./sea/colors";
-import Landmass from "../Landmass/Landmass";
-import { ClimateName, climates } from "./land/climates";
-import { random } from "../../utils/helper-functions";
-import getAverageColor from "./land/average";
+import Formation from "../Formation/Formation";
+import climates, { ClimateName } from "./land/climates";
+import { oneIn, random } from "../../utils/helper-functions";
+import getAverageColor, { getOverlayColor } from "./land/average";
 
 export default class GeoMap {
   scene: MainScene;
@@ -12,7 +12,11 @@ export default class GeoMap {
   pixelTiles!: Phaser.Tilemaps.Tileset;
   land!: Phaser.Tilemaps.TilemapLayer;
   sea!: Phaser.Tilemaps.TilemapLayer;
-  shoreLine!: Phaser.Tilemaps.TilemapLayer;
+  country!: Phaser.Tilemaps.TilemapLayer;
+  border!: Phaser.Tilemaps.TilemapLayer | null;
+
+  // shoreLine!: Phaser.Tilemaps.TilemapLayer;
+  // tint!: Phaser.Tilemaps.TilemapLayer;
   // settlements!: Phaser.Tilemaps.TilemapLayer;
   constructor(scene: MainScene) {
     this.scene = scene as MainScene;
@@ -21,8 +25,8 @@ export default class GeoMap {
     this.pixelMap = scene.make.tilemap({
       tileWidth: 1,
       tileHeight: 1,
-      width: scene.colCount,
-      height: scene.rowCount,
+      width: scene.mapWidth,
+      height: scene.mapHeight,
     });
 
     const pixelTiles = this.pixelMap.addTilesetImage("pixel");
@@ -33,8 +37,8 @@ export default class GeoMap {
       this.pixelTiles,
       0,
       0,
-      scene.colCount,
-      scene.rowCount,
+      scene.mapWidth,
+      scene.mapHeight,
       1,
       1
     );
@@ -44,59 +48,105 @@ export default class GeoMap {
       this.pixelTiles,
       0,
       0,
-      scene.colCount,
-      scene.rowCount,
+      scene.mapWidth,
+      scene.mapHeight,
       1,
       1
     );
 
-    const shoreLineLayer = this.pixelMap.createBlankLayer(
-      "Shoreline Layer",
+    const countryLayer = this.pixelMap.createBlankLayer(
+      "Country Layer",
       this.pixelTiles,
       0,
       0,
-      scene.colCount,
-      scene.rowCount,
+      scene.mapWidth,
+      scene.mapHeight,
       1,
       1
     );
 
     if (landLayer) this.land = landLayer;
     if (seaLayer) this.sea = seaLayer;
-    if (shoreLineLayer) this.shoreLine = shoreLineLayer;
+    if (countryLayer) this.country = countryLayer;
 
-    this.sea.setDepth(0);
-    this.land.setDepth(1);
-    this.shoreLine.setDepth(2);
+    this.sea.setDepth(1);
+    this.land.setDepth(2);
+    this.country.setDepth(3);
+    this.country.alpha = 0;
 
-    this.sea.alpha = 0.45;
+    this.sea.alpha = 0.5;
+
+    this.clear();
+  }
+
+  createBorderLayer() {
+    const borderLayer = this.pixelMap.createBlankLayer(
+      "Border Layer",
+      this.pixelTiles,
+      0,
+      0,
+      this.scene.mapWidth,
+      this.scene.mapHeight,
+      1,
+      1
+    );
+    if (borderLayer) {
+      this.border = borderLayer;
+      this.border.setDepth(10);
+    }
+  }
+  clearBorder() {
+    this.border?.destroy();
+    this.border = null;
+  }
+  placeCountryTile(x: number, y: number, tint: number, alpha: number) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
+      return;
+    }
+    const newTile = this.country.putTileAt(0, x, y);
+    if (!newTile) return;
+    newTile.tint = tint;
+    newTile.alpha = 0.5;
+    newTile.width = this.scene.pixelScale;
+    newTile.height = this.scene.pixelScale;
   }
   placeLandtile(
     x: number,
     y: number,
     climateName: ClimateName,
     climateSet: number,
-    landmass: Landmass,
+    landmass: Formation,
     elevation: number,
-    tint?: number
-  ) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
-      return;
+    forceColor?: number,
+    tint?: { color: number; amount1: number; amount2: number }
+  ): number {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
+      return 0x000000;
     }
     const newTile = this.land.putTileAt(0, x, y);
-    if (!newTile) return;
+    if (!newTile) return 0x000000;
 
     const climate = climates.get(climateName);
-    if (!climate) return;
+    if (!climate) return 0x000000;
 
     newTile.properties = { climate: climateName, landmass, elevation };
-    newTile.tint = tint ?? climate.colors[climateSet][elevation];
+    newTile.tint = forceColor ?? climate.colors[climateSet][elevation];
+    if (tint)
+      newTile.tint = getOverlayColor(
+        newTile.tint,
+        tint.color,
+        tint.amount1,
+        tint.amount2
+      );
+
     newTile.alpha = 1;
     newTile.width = this.scene.pixelScale;
     newTile.height = this.scene.pixelScale;
+    return newTile.tint;
+    // this.tint.putTileAt(0, x, y);
   }
   placeAverageTile(x: number, y: number, color1: number, color2: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
     const newTile = this.land.putTileAt(0, x, y);
@@ -108,7 +158,7 @@ export default class GeoMap {
     newTile.height = this.scene.pixelScale;
   }
   placeSeaTile(x: number, y: number, depth: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
     if (depth >= seaColors.length) return;
@@ -116,11 +166,21 @@ export default class GeoMap {
     if (!newTile) return;
     newTile.tint = seaColors[depth];
     newTile.alpha = 0.15;
+
     // newTile.width = this.scene.pixelScale;
     // newTile.height = this.scene.pixelScale;
   }
+  placeIceTile(x: number, y: number, alpha: number, tint: number) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
+      return;
+    }
+    const newTile = this.sea.putTileAt(0, x, y);
+    if (!newTile) return;
+    newTile.tint = tint;
+    newTile.alpha = alpha;
+  }
   placeSnowPeak(x: number, y: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
     const newTile = this.land.putTileAt(0, x, y);
@@ -129,30 +189,47 @@ export default class GeoMap {
     newTile.width = this.scene.pixelScale;
     newTile.height = this.scene.pixelScale;
   }
-  placeWhiteTile(x: number, y: number, alpha: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+  placeWhiteTile(x: number, y: number, alpha: number, climate: ClimateName) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
     const newTile = this.sea.putTileAt(0, x, y);
     if (!newTile) return;
     newTile.alpha = alpha;
+
+    if (climate === "Mediterranean") {
+      newTile.tint = 0x01c6d6;
+      newTile.alpha *= 1.5;
+    } else if (climate === "Tropical") {
+      if (Date.now() % 2 === 0) {
+        newTile.tint = 0x34e079;
+      } else {
+        newTile.tint = 0x28feca;
+      }
+      newTile.alpha *= 1.25;
+    }
+    if (oneIn(35)) newTile.alpha *= Math.max(random(4), 1);
+
     newTile.width = this.scene.pixelScale;
     newTile.height = this.scene.pixelScale;
   }
-  placeShoreLine(x: number, y: number, alpha: number, tint?: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+  placeBorder(x: number, y: number, alpha: number, tint?: number) {
+    if (!this.border) this.createBorderLayer();
+    if (!this.border) return;
+
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
-    const newTile = this.shoreLine.putTileAt(0, x, y);
+    const newTile = this.border.putTileAt(0, x, y);
     if (!newTile) return;
     newTile.alpha = alpha;
-    newTile.tint = tint ?? 0xffffff;
+    newTile.tint = tint ?? 0x222222;
     newTile.width = this.scene.pixelScale;
     newTile.height = this.scene.pixelScale;
   }
 
   placeColoredTile(x: number, y: number, tint: number, alpha: number) {
-    if (y < 0 || y > this.scene.rowCount || x < 0 || x > this.scene.colCount) {
+    if (y < 0 || y > this.scene.mapHeight || x < 0 || x > this.scene.mapWidth) {
       return;
     }
     const newTile = this.land.putTileAt(0, x, y);
@@ -167,5 +244,53 @@ export default class GeoMap {
     this.sea.forEachTile((tile) => {
       this.placeSeaTile(tile.x, tile.y, 0);
     });
+  }
+  clear() {
+    this.clearBorder();
+    this.land.destroy();
+    this.sea.destroy();
+    this.country.destroy();
+    const seaLayer = this.pixelMap.createBlankLayer(
+      "Sea Layer",
+      this.pixelTiles,
+      0,
+      0,
+      this.scene.mapWidth,
+      this.scene.mapHeight,
+      1,
+      1
+    );
+
+    const landLayer = this.pixelMap.createBlankLayer(
+      "Land Layer",
+      this.pixelTiles,
+      0,
+      0,
+      this.scene.mapWidth,
+      this.scene.mapHeight,
+      1,
+      1
+    );
+
+    const countryLayer = this.pixelMap.createBlankLayer(
+      "Country Layer",
+      this.pixelTiles,
+      0,
+      0,
+      this.scene.mapWidth,
+      this.scene.mapHeight,
+      1,
+      1
+    );
+
+    if (landLayer) this.land = landLayer;
+    if (seaLayer) this.sea = seaLayer;
+    if (countryLayer) this.country = countryLayer;
+
+    this.sea.setDepth(1);
+    this.land.setDepth(2);
+    this.country.setDepth(3);
+
+    this.sea.alpha = 0.5;
   }
 }

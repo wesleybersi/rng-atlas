@@ -288,3 +288,11 @@ export function oneIn(chance: number): boolean {
 export function random(num: number): number {
   return Math.floor(Math.random() * num);
 }
+
+export function numericColorToHex(color: number): string {
+  // Ensure the color value is within the valid range (0x000000 to 0xFFFFFF)
+  const clampedColor = Math.max(0x000000, Math.min(color, 0xffffff));
+  // Convert the numeric color to a hexadecimal string with a leading '0x'
+  const hexString = clampedColor.toString(16).padStart(6, "0");
+  return `#${hexString}`;
+}

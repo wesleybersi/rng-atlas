@@ -22,6 +22,8 @@ const Game = ({
       scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
+
+        autoRound: true,
       },
       fullscreenTarget: document.documentElement,
       fullscreen: {
@@ -29,13 +31,15 @@ const Game = ({
       },
       zoom: window.devicePixelRatio,
       parent: "phaser-game",
-      backgroundColor: "#264a89",
+      // backgroundColor: "#264a89",
 
       // scene: [LandingScene, MainScene, EditorScene, LoadingScene],
       scene: [MainScene],
+      _resolution: window.devicePixelRatio,
+      resolution: 2,
       pixelArt: true,
       render: {
-        antialias: true,
+        antialias: false,
         pixelArt: true,
         roundPixels: true,
       },

@@ -1,56 +1,202 @@
+@import "./styles/mixins.scss";
+
 .App {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   overflow: hidden;
   width: 100%;
   height: 100vh;
-
+  image-rendering: pixelated;
   button {
     padding: 0.75em 2em;
     border: none;
     border-radius: 100vw;
   }
   .b {
-    font-weight: 600;
+    font-weight: 700;
   }
-  .xy {
+
+  header {
     position: absolute;
-    bottom: 2rem;
-    left: 2rem;
+    top: 1.5rem;
+    left: 1.5rem;
+
+    display: flex;
+    gap: 0.75rem;
+    height: 3.5rem;
+    transition: 350ms linear opacity;
+    &:hover {
+      opacity: 1 !important;
+    }
+    section {
+      @include backdrop;
+      @include box-shadow;
+      border-radius: 0.25rem;
+
+      padding: 0 1rem;
+      display: flex;
+      align-items: center;
+      flex: 1;
+      gap: 1rem;
+      div {
+        cursor: pointer;
+        display: grid;
+        place-content: center;
+      }
+      .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        p {
+        }
+      }
+    }
+  }
+  .world-info {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+
+    input {
+      @include backdrop;
+      @include box-shadow;
+      text-align: center;
+      border: none;
+      font-size: 1.5rem;
+      font-weight: 700;
+      outline: none;
+      caret-color: transparent;
+      height: 3.5rem;
+      border-radius: 0.25rem;
+    }
+    .world-info-panel {
+      // padding: 0.5rem 0;
+      display: flex;
+      justify-content: space-between;
+      color: rgba(255, 255, 255, 0.65);
+      align-items: center;
+      div {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+      }
+      sup {
+        font-size: 1rem;
+      }
+    }
+  }
+  .x-y {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.5rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border-radius: 0.5rem;
+    .section {
+      padding: 1rem;
+      @include backdrop;
+      @include box-shadow;
+      border-radius: 0.25rem;
+
+      div {
+        display: flex;
+        gap: 1rem;
+      }
+      span {
+        font-weight: 700;
+      }
+    }
   }
   .start {
+    @include backdrop;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(8px);
     padding: 2rem;
     border-radius: 0.5rem;
-    max-width: 550px;
+    max-width: 500px;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 2rem;
     width: 550px;
+    .start-size {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      .start-size-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-gap: 1.5rem;
+        button {
+          aspect-ratio: 1;
+          border-radius: 0.25rem;
+          background-color: #1b4680;
+          border: none;
+          padding: 0;
+          font-size: 1rem;
+          font-weight: 400;
+        }
+      }
+    }
+    .start-name {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-weight: 700;
+
+      div {
+        position: relative;
+        input {
+          text-align: center;
+          border: none;
+          font-size: 1.75rem;
+          margin-bottom: 0.5rem;
+          font-weight: 600;
+          outline: none;
+          background: none;
+          caret-color: transparent;
+          padding: 0.5rem;
+          background: rgba(255, 255, 255, 0.65);
+          backdrop-filter: blur(8px);
+          border-radius: 0.25rem;
+          height: 100%;
+          width: calc(100% - 8px);
+        }
+        button {
+          position: absolute;
+          right: 0;
+          top: 0;
+          height: 100%;
+          border-radius: 0.25rem;
+          padding: 0 1rem;
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          background-color: #1b4680;
+          border: none;
+        }
+      }
+    }
     .start-buttons {
       display: flex;
       gap: 1rem;
       padding-top: 1rem;
+      justify-content: center;
     }
     button {
-      flex: 1;
-      align-self: center;
       display: grid;
       place-content: center;
-      border-radius: 100vw;
       background-color: rgb(45, 152, 45);
       border: rgb(45, 152, 45) 4px solid;
-
       color: white;
       font-weight: 700;
       font-size: 1.25rem;
-      padding: 0.85rem 2rem;
     }
     .leave-empty {
       background-color: transparent;

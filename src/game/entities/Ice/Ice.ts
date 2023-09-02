@@ -1,11 +1,6 @@
 import MainScene from "../../scenes/Main/MainScene";
+import { oneIn } from "../../utils/helper-functions";
 import Square from "../Square/Square";
-
-// const seaReliefColors = [
-//   0xf5f7ff, 0xffffff, 0xffffff, 0xf9f5ff, 0xf3eeff, 0xe7e6ff, 0xd1d9ff,
-//   0xbbc7ff, 0xa5b6ee, 0x8fa4dd, 0x7992cc, 0x6381bb, 0x4c6fab, 0x375b9a,
-//   0x264a89,
-// ];
 
 const seaReliefColors = [
   0xe3e7f7, 0xe5e9fa, 0xe8ecfd, 0xeaf0ff, 0xecf3ff, 0xf0f5ff, 0xf0f5ff,
@@ -16,130 +11,95 @@ const seaReliefColors = [
   0x9cc8ff, 0x99c6ff, 0x97c5ff, 0x94c4ff, 0x92c3ff, 0x90c1ff, 0x8dc0ff,
   0x8bc0ff, 0x89beff, 0x86bdff, 0x84bcff, 0x82bbff, 0x80b9ff, 0x7db8ff,
   0x7bb7ff, 0x79b6ff, 0x77b4ff, 0x75b3ff, 0x73b2ff, 0x71b1ff, 0x6fb0ff,
-  0x6daeff, 0x6bacff, 0x69abff, 0x67a9ff, 0x65a8ff, 0x63a6ff, 0x61a5ff,
-  0x5fa4ff, 0x5da3ff, 0x5ba2ff, 0x5990f2, 0x5788e7, 0x5580dc, 0x5377d1,
-  0x5170c6, 0x4f68bb, 0x4d60b0, 0x3b58a5, 0x294f9a, 0x274890, 0x153978,
 ];
 
-class Ice extends Phaser.GameObjects.Image {
+class Ice {
   scene: MainScene;
-  row: number;
-  col: number;
+  y: number;
+  x: number;
   depth: number;
   color: number;
+  climate: "Polar" | "Subarctic";
   expanded = false;
-  constructor(scene: MainScene, row: number, col: number, depth: number) {
-    super(scene as MainScene, col, row, "pixel");
+  isIceBlock = false;
+  alpha = Math.max(Math.random() * 0.3, 0.05);
+  freeze: number;
+  constructor(
+    scene: MainScene,
+    y: number,
+    x: number,
+    depth: number,
+    climate: "Polar" | "Subarctic",
+    isIceBlock?: boolean,
+    freeze?: number,
+    alpha?: number
+  ) {
     this.scene = scene;
-    this.row = row;
-    this.col = col;
+    this.y = y;
+    this.x = x;
     this.depth = depth;
+    this.climate = climate;
     this.color = seaReliefColors[depth];
-    this.setTint(this.color);
+    this.freeze = freeze ?? 25;
 
-    scene.add.existing(this);
+    if (isIceBlock || (climate === "Polar" && oneIn(15))) {
+      if (!isIceBlock) this.alpha = Math.random() * 0.65;
+      else this.alpha = alpha ?? 0;
+      this.isIceBlock = true;
+    }
 
-    //Event listener listening to specific event
-    this.scene.events.on(
-      `${row},${col}`,
-      (eventType: string, callback?: (object: unknown) => void) => {
-        // console.log("Event:", eventType, "at", "Row:", row, "Col:", col);
-
-        switch (eventType) {
-          case "Ping":
-            if (callback) callback(this);
-            break;
-          case "Remove":
-            this.remove();
-            break;
-        }
-      },
-      this
-    );
-    this.expand();
+    this.draw();
+    if (this.freeze) this.expand();
   }
   draw() {
     this.color = seaReliefColors[this.depth];
-    this.setTint(this.color);
-    this.alpha = 0.15;
+    this.scene.tilemap.placeIceTile(this.x, this.y, this.alpha, this.color);
   }
 
   expand() {
     if (this.expanded) return;
     const positions = {
-      top: { row: this.row - 1, col: this.col },
-      right: { row: this.row, col: this.col + 1 },
-      bottom: { row: this.row + 1, col: this.col },
-      left: { row: this.row, col: this.col - 1 },
+      top: { y: this.y - 1, x: this.x },
+      right: { y: this.y, x: this.x + 1 },
+      bottom: { y: this.y + 1, x: this.x },
+      left: { y: this.y, x: this.x - 1 },
     };
+    const placeIce = () => {
+      for (const [_, { x, y }] of Object.entries(positions)) {
+        if (
+          y < 0 ||
+          y > this.scene.mapHeight ||
+          x < 0 ||
+          x > this.scene.mapWidth
+        )
+          continue;
+        const amount = Math.floor(Math.random() * 5 + 1);
 
-    for (const [_, position] of Object.entries(positions)) {
-      let objectInPlace: Ice | Square | null = null;
-      this.scene.events.emit(
-        `${position.row},${position.col}`,
-        "Ping",
-        (object?: Ice | Square) => {
-          if ((object && object instanceof Square) || object instanceof Ice) {
-            objectInPlace = object;
-          }
+        let newDepth = this.depth + amount;
+        if (oneIn(10)) newDepth = Math.max(0, this.depth - 2);
+
+        if (
+          !this.scene.tilemap.sea.hasTileAt(x, y) &&
+          oneIn(2) &&
+          newDepth < seaReliefColors.length - 1
+        ) {
+          new Ice(
+            this.scene,
+            y,
+            x,
+            newDepth,
+            this.climate,
+            this.isIceBlock,
+            this.isIceBlock ? this.freeze - 1 : undefined,
+            this.isIceBlock ? this.alpha : undefined
+          );
+          cancelAnimationFrame(id);
         }
-      );
-
-      const amount = Math.floor(Math.random() * 5 + 1);
-
-      let newDepth = this.depth + amount;
-      if (!Math.floor(Math.random() * 10))
-        newDepth = Math.max(0, this.depth - 2);
-
-      if (
-        !objectInPlace &&
-        !Math.floor(Math.random() * 2) &&
-        this.depth + amount < seaReliefColors.length - 1
-      ) {
-        new Ice(this.scene, position.row, position.col, newDepth);
       }
-    }
+    };
+    const id = requestAnimationFrame(placeIce);
 
     this.expanded = true;
-    this.draw();
-    this.normalize();
-  }
-  normalize() {
-    const positions = {
-      top: { row: this.row - 1, col: this.col },
-      right: { row: this.row, col: this.col + 1 },
-      bottom: { row: this.row + 1, col: this.col },
-      left: { row: this.row, col: this.col - 1 },
-    };
-
-    for (const [_, position] of Object.entries(positions)) {
-      if (Math.floor(Math.random() * 10)) continue;
-      this.scene.events.emit(
-        `${position.row},${position.col}`,
-        "Ping",
-        (object?: Ice | Square) => {
-          if (object && object instanceof Ice) {
-            if (Math.abs(object.depth - this.depth) > 1) {
-              // Calculate the average depth
-              const averageDepth = (object.depth + this.depth) / 2;
-
-              // Assign the average depth to both objects
-              object.depth = averageDepth;
-              this.depth = averageDepth;
-              if (averageDepth < seaReliefColors.length) {
-                this.expand();
-                object.expand();
-              }
-            }
-          }
-        }
-      );
-    }
-  }
-
-  remove() {
-    this.scene.events.removeListener(`${this.row},${this.col}`);
-    this.destroy();
   }
 }
 

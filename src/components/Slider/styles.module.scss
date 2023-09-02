@@ -1,12 +1,13 @@
+@import "../../styles/mixins.scss";
+
 .wrapper {
   padding: 0.5rem 0.5rem;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 0.5rem;
   display: flex;
   flex-direction: column;
 
-  color: rgb(55, 55, 55);
+  color: var(--text-color);
   width: 100%;
   font-size: 0.9rem;
   .slider {
@@ -17,7 +18,7 @@
     .header {
       label {
         font-weight: 500;
-        color: #222;
+        color: var(--text-color);
         font-size: 1rem;
       }
     }
